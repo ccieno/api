@@ -1,213 +1,173 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Web Leads → Zoom Contact Center Address Book</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add Web Lead (Zoom Contact Center)</title>
+
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; max-width: 720px; }
-    h1 { margin: 0 0 8px; }
-    p { margin: 8px 0 16px; line-height: 1.4; }
-    .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; }
-    label { display:block; font-weight: 600; margin: 12px 0 6px; }
-    input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .hint { font-size: 12px; color: #555; margin-top: 6px; }
-    button { margin-top: 16px; padding: 10px 14px; border: 0; border-radius: 8px; cursor: pointer; font-weight: 700; }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
-    pre { background: #0b1020; color: #e8ecff; padding: 12px; border-radius: 10px; overflow:auto; }
-    .ok { color: #0a7a2f; font-weight: 700; }
-    .bad { color: #b00020; font-weight: 700; }
-    .tiny { font-size: 12px; color:#666; margin-top:10px;}
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: #f5f7fa;
+      padding: 40px;
+      max-width: 600px;
+      margin: auto;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    .card {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-top: 16px;
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 12px;
+      width: 100%;
+      border: none;
+      border-radius: 8px;
+      background: #0B5CFF;
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .status {
+      margin-top: 16px;
+      font-size: 14px;
+    }
+
+    .success {
+      color: green;
+    }
+
+    .error {
+      color: red;
+    }
+
+    pre {
+      margin-top: 12px;
+      background: #f1f1f1;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      overflow-x: auto;
+    }
   </style>
 </head>
 <body>
-  <h1>Web Leads → Zoom CC Address Book</h1>
-  <p>
-    Creates a contact in the Zoom Contact Center address book named <b>webleads</b>.
-    Phone must be in <b>E.164</b> format (example: <code>+447700900123</code>).
-  </p>
+
+  <h1>Add Contact to "webleads"</h1>
 
   <div class="card">
-    <div class="row">
-      <div>
-        <label for="unitId">Zoom CC Unit ID</label>
-        <input id="unitId" placeholder="e.g. zeYjXoDOS_eV1QmTpj63PQ" />
-        <div class="hint">Required for “List address books”.</div>
-      </div>
-      <div>
-        <label for="addressBookName">Address Book Name</label>
-        <input id="addressBookName" value="webleads" />
-        <div class="hint">We’ll look up the ID by name.</div>
-      </div>
-    </div>
+    <form id="leadForm">
+      <label>Full Name</label>
+      <input id="name" required placeholder="Pat Example" />
 
-    <label for="token">OAuth Access Token (Bearer)</label>
-    <input id="token" placeholder="Paste a short-lived access token here" />
-    <div class="hint">
-      Needs Contact Center admin write scope for address book contacts. :contentReference[oaicite:3]{index=3}
-    </div>
+      <label>Email</label>
+      <input id="email" type="email" placeholder="pat@example.com" />
 
-    <hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+      <label>Phone (E.164 format)</label>
+      <input id="phone" required placeholder="+447700900123" />
 
-    <label for="name">Customer Name</label>
-    <input id="name" placeholder="Jane Smith" />
+      <button type="submit">Add to Address Book</button>
+    </form>
 
-    <div class="row">
-      <div>
-        <label for="email">Email</label>
-        <input id="email" placeholder="jane@smith.com" />
-      </div>
-      <div>
-        <label for="phone">Phone (E.164)</label>
-        <input id="phone" placeholder="+447700900123" />
-      </div>
-    </div>
-
-    <button id="submitBtn">Create contact in webleads</button>
-
-    <div class="tiny">
-      If this fails with CORS in the browser, use a small proxy and set <code>API_BASE</code> below.
-    </div>
+    <div id="status" class="status"></div>
+    <pre id="response"></pre>
   </div>
 
-  <h3>Result</h3>
-  <pre id="out">Ready.</pre>
+<script>
+  // =========================
+  // 🔧 CHANGE THESE TWO VALUES
+  // =========================
+  const WORKER_BASE_URL = "https://eno-zoom-triggers.github-b13.workers.dev";
+  const ADMIN_TOKEN = "CSTSyHD7vwNKxj9ZvaSk0Vr8GBl8rlqAw";
 
-  <script>
-    /******************************************************************
-     * CONFIG
-     *
-     * DIRECT (default): API_BASE = "https://api.zoom.us/v2"
-     * PROXY (recommended): set API_BASE to your proxy base URL, e.g.
-     *   "https://your-worker.example.com/v2"
-     * and have the proxy add Authorization header server-side.
-     ******************************************************************/
-    const API_BASE = "https://api.zoom.us/v2";
+  const form = document.getElementById("leadForm");
+  const statusDiv = document.getElementById("status");
+  const responsePre = document.getElementById("response");
 
-    const out = document.getElementById("out");
-    const btn = document.getElementById("submitBtn");
+  function isE164(phone) {
+    return /^\+\d{8,16}$/.test(phone.trim());
+  }
 
-    function setOut(obj, isError=false) {
-      const prefix = isError ? "ERROR: " : "";
-      out.textContent = prefix + (typeof obj === "string" ? obj : JSON.stringify(obj, null, 2));
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    statusDiv.textContent = "";
+    responsePre.textContent = "";
+
+    const name = document.getElementById("name").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+
+    if (!isE164(phone)) {
+      statusDiv.textContent = "Phone number must be in E.164 format (e.g. +447700900123)";
+      statusDiv.className = "status error";
+      return;
     }
 
-    function isValidEmail(email) {
-      // Simple sanity check (not perfect, but good for a form)
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    }
+    try {
+      const response = await fetch(
+        WORKER_BASE_URL + "/address-books/webleads/contacts",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(ADMIN_TOKEN ? { "X-Admin-Token": ADMIN_TOKEN } : {})
+          },
+          body: JSON.stringify({ name, email, phone })
+        }
+      );
 
-    function isValidE164(phone) {
-      // E.164: + then country code (no leading 0), up to 15 digits total
-      return /^\+[1-9]\d{7,14}$/.test(phone);
-    }
+      const data = await response.json();
 
-    function splitName(fullName) {
-      const parts = (fullName || "").trim().split(/\s+/).filter(Boolean);
-      if (parts.length === 0) return { first_name: "", last_name: "" };
-      if (parts.length === 1) return { first_name: parts[0], last_name: "" };
-      return { first_name: parts.slice(0, -1).join(" "), last_name: parts[parts.length - 1] };
-    }
-
-    async function zoomFetch(path, { method="GET", token, body } = {}) {
-      const headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-      };
-
-      // In PROXY mode, you typically would NOT send a token from the browser.
-      // But we keep this here so the same HTML works for quick demos.
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_BASE}${path}`, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined
-      });
-
-      const text = await res.text();
-      let data;
-      try { data = text ? JSON.parse(text) : {}; }
-      catch { data = { raw: text }; }
-
-      if (!res.ok) {
-        const err = new Error(`HTTP ${res.status} ${res.statusText}`);
-        err.details = data;
-        throw err;
+      if (!response.ok) {
+        statusDiv.textContent = "Error adding contact.";
+        statusDiv.className = "status error";
+        responsePre.textContent = JSON.stringify(data, null, 2);
+        return;
       }
-      return data;
+
+      statusDiv.textContent = "Contact successfully added to webleads.";
+      statusDiv.className = "status success";
+      responsePre.textContent = JSON.stringify(data, null, 2);
+
+      form.reset();
+
+    } catch (err) {
+      statusDiv.textContent = "Network error. Check Worker URL / CORS.";
+      statusDiv.className = "status error";
+      responsePre.textContent = err.toString();
     }
+  });
+</script>
 
-    async function getAddressBookIdByName({ token, unitId, addressBookName }) {
-      // List address books requires unit_id :contentReference[oaicite:4]{index=4}
-      const q = new URLSearchParams({ unit_id: unitId, page_size: "30" }).toString();
-      const data = await zoomFetch(`/contact_center/address_books?${q}`, { token });
-
-      const books = data.address_books || [];
-      const match = books.find(b => (b.address_book_name || "").toLowerCase() === addressBookName.toLowerCase());
-
-      if (!match) {
-        throw new Error(`Address book "${addressBookName}" not found in unit_id "${unitId}".`);
-      }
-      return match.address_book_id;
-    }
-
-    async function createContact({ token, addressBookId, name, email, phone }) {
-      const { first_name, last_name } = splitName(name);
-
-      // Create an address book contact :contentReference[oaicite:5]{index=5}
-      const payload = {
-        display_name: name,
-        first_name,
-        last_name,
-        emails: [email],
-        // Use "phones" so you can set the type; the API also shows "phone_numbers" as an alternative. :contentReference[oaicite:6]{index=6}
-        phones: [
-          { phone_number: phone, phone_type: "mobile" }
-        ]
-      };
-
-      return zoomFetch(`/contact_center/address_books/${encodeURIComponent(addressBookId)}/contacts`, {
-        method: "POST",
-        token,
-        body: payload
-      });
-    }
-
-    btn.addEventListener("click", async () => {
-      const unitId = document.getElementById("unitId").value.trim();
-      const addressBookName = document.getElementById("addressBookName").value.trim();
-      const token = document.getElementById("token").value.trim();
-      const name = document.getElementById("name").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const phone = document.getElementById("phone").value.trim();
-
-      // Basic validation
-      if (!unitId) return setOut("Please provide Unit ID.", true);
-      if (!addressBookName) return setOut("Please provide Address Book Name.", true);
-      if (!token && API_BASE === "https://api.zoom.us/v2") {
-        return setOut("Please provide an access token (or switch to proxy mode and remove token usage).", true);
-      }
-      if (!name) return setOut("Please provide Name.", true);
-      if (!isValidEmail(email)) return setOut("Email looks invalid.", true);
-      if (!isValidE164(phone)) return setOut("Phone must be E.164, e.g. +447700900123", true);
-
-      btn.disabled = true;
-      setOut("Working…");
-
-      try {
-        const addressBookId = await getAddressBookIdByName({ token, unitId, addressBookName });
-        setOut({ step: "Found address book", addressBookId });
-
-        const created = await createContact({ token, addressBookId, name, email, phone });
-        setOut({ ok: true, message: "Contact created.", created });
-      } catch (e) {
-        setOut({ message: e.message, details: e.details || null }, true);
-      } finally {
-        btn.disabled = false;
-      }
-    });
-  </script>
 </body>
 </html>
